@@ -23,7 +23,8 @@ RUN apt-get update \
 
 RUN mkdir -p /docker-entrypoint-initdb.d
 COPY ./initdb-postgis.sh /docker-entrypoint-initdb.d/postgis.sh
-COPY ./init-user-db.sh /docker-entrypoint-initdb.d/init-user-db.sh
+
+EXPOSE 5432
 
 # ---------- FIN --------------
 #

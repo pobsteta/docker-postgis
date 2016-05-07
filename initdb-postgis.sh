@@ -1,23 +1,55 @@
-#!/bin/sh
-
+#!/bin/bash
 set -e
 
-# Réalise les actions avec l'utilisateur $POSTGRES_USER
-export PGUSER="$POSTGRES_USER"
-export GIS_DB="$GIS_DB"
+: ${GIS_USER:=tryton}
+if [ "$GIS_PASSWORD" ]; then
+    PASS="PASSWORD '$GIS_PASSWORD'"
+else
+    PASS="PASSWORD '$GIS_USER'"
+fi
+: ${GIS_DB:=tryton}
+: ${DB_ENCODING:=UTF-8}
 
-# Crée la base de données modèle 'template_postgis'
-psql --dbname="$POSTGRES_DB" <<- 'EOSQL'
-CREATE DATABASE template_postgis;
-UPDATE pg_database SET datistemplate = TRUE WHERE datname = 'template_postgis';
-EOSQL
+# Réalise toutes les actions avec l'utilisateur 'postgres'
+export PGUSER=postgres
 
-# Charge les extensions dans les base de données tryton, template_database et $POSTGRES_DB
-for DB in "$GIS_DB" template_postgis "$POSTGRES_DB"; do
-	echo "Charge les extensions PostGIS dans $DB"
-	psql --dbname="$DB" <<-'EOSQL'
-		CREATE EXTENSION postgis;
-		CREATE EXTENSION postgis_topology;
-		CREATE EXTENSION fuzzystrmatch;		
+# Teste si la base de données existe
+echo
+echo "Vérifie l'existence de la base de données $GIS_DB..."
+INIT=$(psql -d template1 -t <<-EOSQL
+        SELECT COUNT(*) from pg_database where datname = '$GIS_DB';
 EOSQL
-done
+)
+INIT="$(echo "$INIT" | sed -e 's/^[ \t]*//;s/[ \t]*$//')"
+
+if [ "${INIT}" == "0" ]; then
+	echo "Crée le rôle $GIS_USER..."
+	psql <<-EOSQL
+		CREATE ROLE $GIS_USER WITH LOGIN $PASS CREATEDB;		
+	EOSQL
+	echo
+	echo "Crée la base de données $GIS_DB..."
+	psql <<-EOSQL
+		CREATE DATABASE $GIS_DB WITH OWNER $GIS_USER ENCODING='$DB_ENCODING';		
+	EOSQL
+	echo
+	echo "Ajoute l'extension postgis à la base de données $GIS_DB..."	
+	psql --dbname $GIS_DB <<-EOSQL
+		CREATE EXTENSION postgis;	    
+	EOSQL
+	echo
+	echo "Ajoute l'extension postgis_topology à la base de données $GIS_DB..."	
+	psql --dbname $GIS_DB <<-EOSQL
+	    CREATE EXTENSION postgis_topology;		
+	EOSQL
+	echo
+	echo "Ajoute l'extension fuzzystrmatch à la base de données $GIS_DB..."	
+	psql --dbname $GIS_DB <<-EOSQL
+	    CREATE EXTENSION fuzzystrmatch;
+	EOSQL
+	echo
+	echo "La base de données $GIS_DB est prête !"
+else
+    echo
+	echo "La base de données $GIS_DB existe déjà, elle est prête !"
+fi
