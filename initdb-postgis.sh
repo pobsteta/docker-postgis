@@ -1,14 +1,17 @@
 #!/bin/bash
 set -e
 
+: ${GIS_DB:=tryton}
+: ${DB_ENCODING:=UTF-8}
+
 : ${GIS_USER:=tryton}
 if [ "$GIS_PASSWORD" ]; then
     PASS="PASSWORD '$GIS_PASSWORD'"
 else
     PASS="PASSWORD '$GIS_USER'"
 fi
-: ${GIS_DB:=tryton}
-: ${DB_ENCODING:=UTF-8}
+
+SQLDIR="/usr/share/postgresql/9.5/contrib/postgis-2.2/"
 
 # Réalise toutes les actions avec l'utilisateur 'postgres'
 export PGUSER=postgres
@@ -47,6 +50,9 @@ if [ "${INIT}" == "0" ]; then
 	psql --dbname $GIS_DB <<-EOSQL
 	    CREATE EXTENSION fuzzystrmatch;
 	EOSQL
+	echo
+	echo "Ajoute l'extension legacy à la base de données $GIS_DB..."	
+	psql --dbname $GIS_DB -f $SQLDIR/legacy.sql
 	echo
 	echo "La base de données $GIS_DB est prête !"
 else
