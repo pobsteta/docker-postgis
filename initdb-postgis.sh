@@ -52,7 +52,7 @@ if [ "${INIT}" == "0" ]; then
 	EOSQL
 	echo
 	echo "Ajoute l'extension legacy à la base de données $GIS_DB..."	
-	psql --dbname $GIS_DB -f $SQLDIR/legacy.sql
+	psql --dbname $GIS_DB -q -1f $SQLDIR/legacy.sql
 	echo
 	echo "La base de données $GIS_DB est prête !"
 else
